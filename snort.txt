@@ -1,0 +1,357 @@
+PFSENSE SNORT
+alert udp any 68 -> any 67 (msg:"kali linux detected";content:"kali";nocase;sid:1000001;)
+alert tcp any any -> any any (msg:"Possible NMAP port scan";detection_filter:track by_src,count
+20,seconds 60;sid:1000002;)
+alert icmp any any -> any any (msg:"Large ping Packets detected";dsize:>128;sid:1000003;)
+alert icmp any any -> any any (msg:"flooding detected";detection_filter: track by_src,count
+30,seconds 60;sid:1000004)
+
+sudo vim /etc/snort/rules/local.rules
+sudo snort -A console -i ens37 -c /etc/snort/snort.conf -l /var/log/snort/
+
+Install a web server on a Linux system. Install and configure Snort as IDS on this system. Add
+following rules to Snort to generate an alert for following threats.
+1. If a ping packet with size greater than 128 bytes is received.
+2. If from an outside IP address 30 ICMP packets are received within 1 min.
+3. If from an outside single IP address more that 20 TCP SYN requests are received in 1 min to
+the web server
+4. If a brute force attack is done on the SSH service.
+5. If a kali Linux machine,bools in the network.
+6. If a gmail website is accessed from the web server.
+7. If the facebook website is accessed from the web server.
+8. If the Instagram website is accessed from the web server.
+alert icmp any any -> 192.168.74.201 any (msg:"larger message
+payload";dsize:>128;sid:1000001;)
+alert icmp any any -> 192.168.74.201 any (msg:"Flood Detected ICMP";detection_filter:track
+by_src,count 30,seconds 60;sid:1000002;)
+alert tcp any any -> 192.168.74.201 80 (msg:"Flood on WEB
+SERVER";flags:S;detection_filter:track by_src,count 20,seconds 60;sid:1000003;)
+alert tcp any any -> 192.168.74.201 22 (msg:"ssh brute force
+attempt";flags:S;detection_filter:track by_src,count 5,seconds 60;sid:1000004;)
+alert udp any 68 -> any 67 (msg:"kali linux detected";content:"kali"; nocase; sid:1000005;)
+
+alert udp any any -> any any (msg:"Gmail login detected";content:"gmail"; nocase;
+sid:1000006;)
+alert udp any any -> any any (msg:"Facebook Browsing detected";content:"facebook"; nocase;
+sid:1000007;)
+alert udp any any -> any any (msg:"Insta accessed";content:"instagram"; nocase; sid:1000008;)
+
+NGINX /etc/nginx/nginx.conf
+# For more information on configuration, see:
+# * Official English Documentation: http://nginx.org/en/docs/
+# * Official Russian Documentation: http://nginx.org/ru/docs/
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log;
+pid /run/nginx.pid;
+# Load dynamic modules. See /usr/share/doc/nginx/README.dynamic.
+include /usr/share/nginx/modules/*.conf;
+events {
+worker_connections 1024;
+}
+http {
+log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+'$status $body_bytes_sent "$http_referer" '
+'"$http_user_agent" "$http_x_forwarded_for"';
+access_log /var/log/nginx/access.log main;
+sendfile
+on;
+tcp_nopush
+on;
+tcp_nodelay
+on;
+keepalive_timeout 65;
+types_hash_max_size 4096;
+
+include
+default_type
+
+/etc/nginx/mime.types;
+application/octet-stream;
+
+# Load modular configuration files from the /etc/nginx/conf.d directory.
+# See http://nginx.org/en/docs/ngx_core_module.html#include
+# for more information.
+include /etc/nginx/conf.d/*.conf;
+upstream backend {
+​
+server 192.168.25.25;
+​
+server 192.168.25.35;
+​
+#server 192.168.25.35 weight=5;
+}​
+server {
+listen
+80;
+# listen
+[::]:80;
+# server_name _;
+# root
+/usr/share/nginx/html;
+# Load configuration files for the default server block.
+include /etc/nginx/default.d/*.conf;
+error_page 404 /404.html;
+location = /404.html {
+}
+error_page 500 502 503 504 /50x.html;
+location = /50x.html {
+}
+#location = /exam {
+#​
+proxy_pass http://192.168.25.25/;
+#}
+location = / {
+​
+proxy_pass http://backend/;
+}
+
+​
+​
+​
+​
+​
+​
+}
+
+# Settings for a TLS enabled server.
+#
+# server {
+#
+listen
+443 ssl http2;
+#
+listen
+[::]:443 ssl http2;
+#
+server_name _;
+
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+}
+
+root
+
+/usr/share/nginx/html;
+
+ssl_certificate "/etc/pki/nginx/server.crt";
+ssl_certificate_key "/etc/pki/nginx/private/server.key";
+ssl_session_cache shared:SSL:1m;
+ssl_session_timeout 10m;
+ssl_ciphers PROFILE=SYSTEM;
+ssl_prefer_server_ciphers on;
+# Load configuration files for the default server block.
+include /etc/nginx/default.d/*.conf;
+error_page 404 /404.html;
+location = /40x.html {
+}
+error_page 500 502 503 504 /50x.html;
+location = /50x.html {
+}
+}
+
+ipset icmp/ssh/http block :
+iptables -I INPUT 1 -m set --match-set batman src -j DROP
+iptables -I INPUT 2 -p icmp --icmp-type=echo-request -j SET --add-set batman src
+----------------------------------------------------------------------------------------------------------------------------------------------------------Iptables :DMZ
+sudo iptables -L
+sudo iptables -t nat -L
+sudo iptables -t nat -A POSTROUTING -s 192.168.25.0/24 -o ens160 -j MASQUERADE
+sudo iptables -t nat -A POSTROUTING -s 192.168.35.0/24 -o ens160 -j MASQUERADE
+`````````````````````````````````````````````````````````````````````````````````
+Enable Forwarding :cat /proc/sys/net/ipv4/ip_forward
+sudo iptables -I FORWARD 1 -p udp -d 192.168.72.20 --dport=53 -j ACCEPT
+sudo iptables -I FORWARD 1 -p udp -s 192.168.72.20 --sport=53 -j ACCEPT
+
+`````````````````````````````````````````````````````````````````````````````````
+New chain for DMZ , Private :sudo iptables -N dmz_chain
+sudo iptables -N lan_chain
+sudo iptables -I FORWARD 3 -j dmz_chain
+sudo iptables -I FORWARD 4 -j lan_chain
+sudo iptables -A dmz_chain -p tcp -s 192.168.35.0/24 -m conntrack --ctstate NEW -j ACCEPT
+sudo iptables -A dmz_chain -p tcp -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+sudo iptables -A dmz_chain -j RETURN
+sudo iptables -A lan_chain -p tcp -s 192.168.25.0/24 -d www.google.com --dport=443 -m
+conntrack --ctstate NEW -j ACCEPT
+sudo iptables -A lan_chain -p tcp -s 192.168.25.0/24 -d www.cdac.in --dport=443 -m conntrack
+--ctstate NEW -j ACCEPT
+sudo iptables -A lan_chain -p tcp -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+sudo iptables -A lan_chain -j RETURN
+
+````````````````````````````````````````````````````````````````````````````````````````````````````````
+Port Forwarding For Website Access :sudo iptables -t nat -A PREROUTING -p tcp -i ens160 --dport=80 -j DNAT --to-destination
+192.168.35.10:80
+sudo iptables -I dmz_chain 3 -p tcp -d 192.168.35.10 --dport=80 -m conntrack --ctstate NEW -j
+ACCEPT
+
+Note: on machine 192.168.35.10, web server should be running
+Sudo apt/dnf install httpd/apache2
+Sudo vim /var/www/html/index.html
+Option1: sudo ufw allow 80
+Option2: sudo firewall-cmd --add-service=80 --permanent
+Sudo firewall-cmd --reload
+Browse 192.168.74.227- should show web page of server which in running on 192.168.35.10
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------Ipset :Chai
+ipset create chai hash:ip timeout 60
+iptables -I INPUT 1 -m set --match-set chai src -j DROP
+
+iptables -I INPUT 2 -p icmp --icmp-type echo-request -j SET --add-set chai src
+iptables -I INPUT 3 -p tcp --dport=22 -j SET --add-set chai src
+iptables -I INPUT 4 -p tcp --dport=80 -j SET --add-set chai src
+iptables -I INPUT 2 -p icmp --icmp-type echo-request -m length --length 156: -j SET --add-set
+chai src
+iptables -R INPUT 2 -p icmp --icmp-type echo-request -m limit --limit 10/s -j SET --add-set chai
+src
+ipset del chai 192.168.74.74
+iptables -D INPUT 1
+iptables destroy chai
+----------------------------------------------------------------------------------------------------------------------------------------------------------Snort :Cd /etc/snort
+Sudo vim snort.conf
+--> ​ ipvar HOME_NET 192.168.35.0/24
+--> ​ ipvar EXTERNAL_NET !$HOME_NET
+-->​ var RULE_PATH /etc/snort/rules
+-->​ var SO_RULE_PATH /etc/snort/so_rules
+-->​ var PREPROC_RULE_PATH /etc/snort/preproc_rules
+-->​ var WHITE_LIST_PATH /etc/snort/rules
+-->​ var BLACK_LIST_PATH /etc/snort/rules
+(make sure to enable this in file)
+Cd /etc/snort/rules
+Sudo vim local.rules
+alert icmp any any -> any any (msg:"Test ping";sid:1000013;)
+alert udp any any -> any 53 (msg:”LAN searching
+facebook”;content:”facebook”;nocase;sid:952145;)
+alert tcp $EXTERNAL_NET any -> 192.168.74.227 22 (msg:"Test SSH";sid:1000003;)
+alert icmp any any -> 192.168.74.227 any (msg:"Test big_data ping";dsize:>128;sid:1000004;)
+alert icmp any any -> 192.168.74.227 any (msg:"Ping of Death";detection_filter:track
+by_src,count 20,seconds 60;sid:1000044;)
+alert tcp any any -> 192.168.74.227 80 (msg:"flood web flow";flags:S;detection_filter:track
+by_src,count 20,seconds 60;sid:1000033;)
+
+for logs :sudo snort -A console -i ens160 -c /etc/snort/snort.conf -l /var/log/snort/
+​
+​
+​
+​
+(OR)
+sudo cat /var/log/snort/alert.fast
+----------------------------------------------------------------------------------------------------------------------------------------------------------NGINX
+NOTE: set iptables before (remove REJECT rule from FORWARD and add MASQUERADE in
+NAT POSTROUTING)
+Sudo setenforce 0
+Sudo apt install nginx
+Sudo systemctl status nginx
+Cd /etc/nginx/
+Sudo vim nginx.conf
+41
+42
+43
+44
+45
+
+server {
+listen
+80;
+#listen
+[::]:80;
+#server_name _;
+#root
+/usr/share/nginx/html;
+
+# Load Balancer
+Accord Line 37
+upstream backend {
+server 192.168.35.10;
+server 192.168.25.20 weight 5;
+}
+​
+location / {
+​
+​
+proxy_pass http://backend/;
+​ }
+# for different pages
+Accord Line 58 for
+location / {
+
+​
+
+​
+
+proxy_pass http://192.168.25.20/;
+
+​ }
+location /cdac{
+​
+proxy_pass http://192.168.35.10/;
+​ }
+Browser:​
+Browser:​
+
+192.168.74.227/
+192.168.74.227/cdac
+
+Note: ON client web server should be run
+----------------------------------------------------------------------------------------------------------------------------------------------------------nginx Loadbalancing + Reverse Proxy :Loadbalancing
+36 include /etc/nginx/conf.d/*.conf;
+37 upstream batman {
+38
+server 192.168.25.10;
+39
+server 192.168.25.20;
+40 }
+41 server {
+42
+listen
+80;
+43 #
+listen
+[::]:80;
+44 #
+server_name _;
+45 #
+root
+/usr/share/nginx/html;
+46
+47
+# Load configuration files for the default server block.
+48
+include /etc/nginx/default.d/*.conf;
+49
+50
+error_page 404 /404.html;
+51
+location = /404.html {
+52
+}
+53
+location = / {
+54
+proxy_pass http://batman/;
+55
+}
+56
+location = /cdac {
+57
+proxy_pass http://192.168.25.10/;
+
+
